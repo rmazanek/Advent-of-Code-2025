@@ -1,4 +1,7 @@
 from math import floor
+import time
+
+start_time = time.perf_counter()
 
 def main():
   
@@ -15,7 +18,6 @@ def main():
   
   # Turn the dial
   for cmd in dial_commands:
-    print(cmd)
     dial.num_times_hit_zero += dial.get_num_times_hit_zero(cmd)
     dial.turn(cmd)
 
@@ -25,6 +27,9 @@ def main():
   
   print(f"Number of times the dial landed on zero: {num_times_landed_on_zero}")
   print(f"Number of times the dial hit zero: {dial.num_times_hit_zero}")
+  end_time = time.perf_counter()
+  elapsed_time = end_time - start_time
+  print(f"Elapsed time: {elapsed_time:.6f} seconds")
 
 def parse_command(command):
   _direction, _distance = command[0], int(command[1:])
@@ -48,17 +53,30 @@ def get_num_in_range(a, b, first_num, last_num):
   if (_sum <= last_num and _sum >= first_num):
     return _sum
   
+  # Get the remainder of distance to turn (removing full turns)
+  _reduced_b = get_reduced_dial_distance(a, b, last_num)
+  _remainder = _reduced_b % (last_num + 1)
+  
+  # Going to the left vs right
+  if (b < 0):
+    # If the remainder was 0, the remaining distance to turn was either 0 or a multiple of the dial,
+    # so we want to end up back at the first number.
+    # Otherwise, we want to "turn back" the number of clicks for the remainder
+    if (_remainder == 0):
+      return first_num
+    else:
+      return last_num + 1 - _remainder
+  else:
+    return _remainder
+
+def get_reduced_dial_distance(a, b, last_num):
   if (b < 0):
     b = abs(b) - a
-    _resting_num = last_num + 1 - b % (last_num + 1)
-    if (_resting_num == last_num + 1):
-      _resting_num = 0
-    return _resting_num
   else:
     b = abs(b) - (last_num + 1 - a)
-    _resting_num = (b % (last_num + 1))
-    return _resting_num
-        
+  
+  return b
+
 class Dial:
   def __init__(self, first_num=0, last_num=99, current_num=50):
     self.first_num = first_num
@@ -91,12 +109,8 @@ class Dial:
       _hit_zero += 1
     
     # Check how many more times it passes
-    if (_direction < 0):
-      # Reduce the distance since we already recorded the first pass
-      _distance -= self.current_num
-    else:
-      # Reduce the distance so we can start adding from 0
-      _distance = _distance - (_dial_numbers - self.current_num)
+    # Reduce the distance since we already recorded the first pass
+    _distance = get_reduced_dial_distance(self.current_num, _direction * _distance, self.last_num)
 
     _hit_zero += floor(_distance / _dial_numbers)
     
